@@ -39,13 +39,6 @@ Example:
 Create an `assets/` folder and add image files. Then reference them as `assets/filename.jpg`.
 Use images you own or have permission to use. Sample Unsplash images are placeholders and are not specific to the named Chinese locations.
 
-## Publish on GitHub Pages
-1. Create a GitHub repository (e.g. `honor-location-scout`).
-2. Upload `index.html`, this README and your `assets/` folder.
-3. In GitHub: **Settings → Pages**.
-4. Choose **Deploy from a branch**, select `main` and `/ (root)`, then Save.
-5. GitHub will provide a Pages URL after deployment.
-
 ## Map credits / usage
 Map library: Leaflet (BSD-2-Clause). Map tiles/data: OpenStreetMap contributors.
 The page displays OSM attribution. Standard OSM tiles are intended for normal interactive browsing, not bulk downloads or offline tile packaging. For a larger production audience, consider a dedicated tile provider and review its terms.
