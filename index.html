@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HONOR | Location Scout</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root { --ink:#161616; --muted:#707070; --line:#e7e7e7; --accent:#c8102e; --paper:#fff; --soft:#f6f6f6; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,Arial,sans-serif; color:var(--ink); background:#f2f2f2; }
+    header { height:66px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; background:#fff; border-bottom:1px solid var(--line); }
+    .brand { font-weight:800; letter-spacing:.12em; font-size:15px; }
+    .brand span { color:var(--accent); }
+    .topmeta { color:var(--muted); font-size:12px; letter-spacing:.08em; }
+    main { display:grid; grid-template-columns:340px minmax(0,1fr); height:calc(100vh - 66px); min-height:620px; }
+    aside { background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+    .sidehead { padding:22px 20px 15px; }
+    h1 { margin:0 0 7px; font-size:22px; letter-spacing:-.04em; }
+    .sub { color:var(--muted); font-size:12px; line-height:1.5; }
+    .filters { padding:0 20px 15px; display:grid; gap:9px; }
+    input,select,textarea { width:100%; padding:11px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+    .count { padding:0 20px 12px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.1em; }
+    #locationList { overflow:auto; padding:0 10px 15px; }
+    .place { width:100%; display:flex; gap:11px; padding:12px 10px; text-align:left; border:0; border-radius:9px; background:transparent; cursor:pointer; }
+    .place:hover,.place.active { background:#f4f4f4; }
+    .place-dot { flex:0 0 9px; height:9px; border-radius:50%; margin-top:5px; background:var(--accent); box-shadow:0 0 0 4px #c8102e18; }
+    .place-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+    .place-meta { font-size:11px; color:var(--muted); line-height:1.5; }
+    .sidefoot { margin-top:auto; border-top:1px solid var(--line); padding:14px 20px; font-size:11px; color:var(--muted); }
+    #map { height:100%; width:100%; background:#e8e8e8; }
+    .mapwrap { position:relative; min-width:0; }
+    .maplabel { position:absolute; z-index:500; top:15px; left:15px; background:#fff; padding:10px 13px; border-radius:8px; box-shadow:0 2px 14px #0001; font-size:11px; letter-spacing:.08em; }
+    .maplabel b { display:block; font-size:12px; margin-bottom:3px; }
+    .leaflet-popup-content-wrapper { border-radius:12px; padding:0; overflow:hidden; }
+    .leaflet-popup-content { margin:0; width:300px!important; }
+    .popup { width:300px; }
+    .popup img { display:block; width:100%; height:170px; object-fit:cover; background:#eee; }
+    .popupbody { padding:14px 15px 16px; }
+    .popup h2 { font-size:17px; margin:0 0 5px; }
+    .popup .region { font-size:10px; letter-spacing:.12em; color:var(--accent); text-transform:uppercase; font-weight:700; }
+    .popup p { font-size:12px; line-height:1.5; margin:9px 0; color:#555; }
+    .chips { display:flex; flex-wrap:wrap; gap:5px; margin:9px 0; }
+    .chip { background:#f2f2f2; padding:5px 7px; border-radius:5px; font-size:10px; }
+    .coords { color:#777; font-size:10px; font-family:monospace; }
+    .gallery { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:10px; }
+    .gallery img { height:54px; border-radius:5px; cursor:pointer; }
+    .empty { color:#777; padding:20px; font-size:13px; }
+    @media(max-width:800px) {
+      header { padding:0 14px; } .topmeta { display:none; }
+      main { grid-template-columns:1fr; grid-template-rows:42vh 1fr; height:auto; min-height:calc(100vh - 66px); }
+      .mapwrap { grid-row:1; } #map { height:42vh; min-height:280px; }
+      aside { grid-row:2; border-right:0; border-top:1px solid var(--line); min-height:420px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">HONOR <span>／</span> LOCATION SCOUT</div>
+  <div class="topmeta">CHINA · BRAND FILM · LOCATION RESEARCH</div>
+</header>
+<main>
+  <aside>
+    <div class="sidehead">
+      <h1>Location shortlist</h1>
+      <div class="sub">Explore potential filming locations across China.</div>
+    </div>
+    <div class="filters">
+      <input id="search" placeholder="Search location, province, landscape…" aria-label="Search locations"/>
+      <select id="provinceFilter" aria-label="Filter by province">
+        <option value="">All provinces</option>
+      </select>
+    </div>
+    <div class="count" id="count">0 locations</div>
+    <div id="locationList"></div>
+    <div class="sidefoot">Internal scouting reference · Replace sample data and images before sharing.</div>
+  </aside>
+  <section class="mapwrap">
+    <div class="maplabel"><b>CHINA</b>FILM LOCATION OVERVIEW</div>
+    <div id="map"></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/*
+  EDIT THIS ARRAY TO ADD YOUR LOCATIONS.
+  Coordinates are decimal degrees: latitude first, longitude second.
+  Image URLs can be direct image links (jpg/png/webp) or files in your GitHub repo.
+*/
+const locations = [
+  {
+    id: "yuanmou",
+    name: "Yuanmou Earth Forest",
+    province: "Yunnan",
+    lat: 25.7040,
+    lng: 101.8750,
+    landscape: "Earth pillars · surreal geology",
+    daytime: "Approx. 14–17°C (planning estimate)",
+    altitude: "Approx. 1,000–1,500 m (varies by site)",
+    description: "Sculptural earth formations, ochre tones and deep gullies. Potential visual alternative to a monochrome alien landscape.",
+    production: "Check access roads, commercial filming permission and sunrise wind conditions.",
+    images: [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=600&q=80"
+    ]
+  },
+  {
+    id: "panzhihua",
+    name: "Panzhihua · Jinsha River Valley",
+    province: "Sichuan",
+    lat: 26.5820,
+    lng: 101.7180,
+    landscape: "River valley · rugged mountains",
+    daytime: "Approx. 18–21°C (city-area estimate)",
+    altitude: "Varies significantly by valley / viewpoint",
+    description: "Large mountain silhouettes, broad river bends and dry subtropical terrain. A strong candidate for grand landscape compositions.",
+    production: "Scout exact viewpoints and road access; temperature can change with elevation.",
+    images: [
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=600&q=80"
+    ]
+  },
+  {
+    id: "wanfenglin",
+    name: "Wanfenglin",
+    province: "Guizhou",
+    lat: 25.0000,
+    lng: 104.9000,
+    landscape: "Karst peaks · vast panorama",
+    daytime: "Approx. 12–15°C (planning estimate)",
+    altitude: "Basin and surrounding peaks vary",
+    description: "Thousands of limestone peaks across a broad basin. Distinctive geography and excellent aerial scale.",
+    production: "January cloud cover is a creative risk; check drone restrictions and scenic-area permits.",
+    images: [
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80"
+    ]
+  },
+  {
+    id: "danxia",
+    name: "Danxia Mountain",
+    province: "Guangdong",
+    lat: 25.0250,
+    lng: 113.7450,
+    landscape: "Red sandstone · cliffs",
+    daytime: "Cool-to-mild; check shoot-day forecast",
+    altitude: "Varies by shooting point",
+    description: "Red sandstone cliffs, sculptural rock formations and river landscapes. A strong colour and texture contrast.",
+    production: "Confirm filming permits, access windows and wind at exposed viewpoints.",
+    images: [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=600&q=80"
+    ]
+  }
+];
+
+// China overview. Leaflet expects [latitude, longitude].
+const map = L.map("map", { zoomControl: true }).setView([35.5, 103.5], 4);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+}).addTo(map);
+
+const markerLayer = L.featureGroup().addTo(map);
+const markerById = new Map();
+let activeId = null;
+
+function safeText(value = "") {
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[c]));
+}
+
+function popupHTML(place) {
+  const imgs = (place.images || []).filter(Boolean);
+  const hero = imgs[0] || "";
+  const gallery = imgs.slice(1).map(src =>
+    `<img src="${safeText(src)}" alt="Reference image" loading="lazy"
+      onclick="window.open('${safeText(src)}','_blank','noopener')">`).join("");
+  return `
+    <article class="popup">
+      ${hero ? `<img src="${safeText(hero)}" alt="${safeText(place.name)} reference" loading="lazy">` : ""}
+      <div class="popupbody">
+        <div class="region">${safeText(place.province)} · FILM LOCATION</div>
+        <h2>${safeText(place.name)}</h2>
+        <div class="chips">
+          <span class="chip">${safeText(place.landscape || "Landscape")}</span>
+          ${place.daytime ? `<span class="chip">${safeText(place.daytime)}</span>` : ""}
+        </div>
+        <p>${safeText(place.description || "")}</p>
+        ${place.altitude ? `<p><b>Altitude:</b> ${safeText(place.altitude)}</p>` : ""}
+        ${place.production ? `<p><b>Production notes:</b> ${safeText(place.production)}</p>` : ""}
+        <div class="coords">${Number(place.lat).toFixed(5)}, ${Number(place.lng).toFixed(5)}</div>
+        ${gallery ? `<div class="gallery">${gallery}</div>` : ""}
+      </div>
+    </article>`;
+}
+
+function selectPlace(place, openPopup = true) {
+  activeId = place.id;
+  document.querySelectorAll(".place").forEach(el => el.classList.toggle("active", el.dataset.id === place.id));
+  const marker = markerById.get(place.id);
+  if (marker) {
+    map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 7), { duration: 0.7 });
+    if (openPopup) marker.openPopup();
+  }
+}
+
+function renderList() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const province = document.getElementById("provinceFilter").value;
+  const filtered = locations.filter(p => {
+    const hay = [p.name,p.province,p.landscape,p.description].join(" ").toLowerCase();
+    return (!q || hay.includes(q)) && (!province || p.province === province);
+  });
+  document.getElementById("count").textContent = `${filtered.length} / ${locations.length} locations`;
+  const list = document.getElementById("locationList");
+  list.innerHTML = filtered.length ? filtered.map(p => `
+    <button class="place ${p.id === activeId ? "active" : ""}" data-id="${safeText(p.id)}">
+      <span class="place-dot"></span><span>
+        <div class="place-title">${safeText(p.name)}</div>
+        <div class="place-meta">${safeText(p.province)} · ${safeText(p.landscape || "")}</div>
+      </span>
+    </button>`).join("") : `<div class="empty">No matching locations.</div>`;
+  list.querySelectorAll(".place").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const place = locations.find(p => p.id === btn.dataset.id);
+      if (place) selectPlace(place);
+    });
+  });
+}
+
+function addMarkers() {
+  locations.forEach(place => {
+    if (!Number.isFinite(place.lat) || !Number.isFinite(place.lng)) return;
+    const marker = L.marker([place.lat, place.lng]).addTo(markerLayer);
+    marker.bindPopup(popupHTML(place), { maxWidth: 320 });
+    marker.on("click", () => {
+      activeId = place.id;
+      renderList();
+    });
+    markerById.set(place.id, marker);
+  });
+}
+function populateProvinces() {
+  const provinces = [...new Set(locations.map(p => p.province).filter(Boolean))].sort();
+  const select = document.getElementById("provinceFilter");
+  provinces.forEach(p => {
+    const option = document.createElement("option");
+    option.value = p; option.textContent = p;
+    select.appendChild(option);
+  });
+}
+document.getElementById("search").addEventListener("input", renderList);
+document.getElementById("provinceFilter").addEventListener("change", renderList);
+populateProvinces();
+addMarkers();
+renderList();
+if (locations.length) {
+  const bounds = markerLayer.getBounds();
+  if (bounds.isValid()) map.fitBounds(bounds.pad(0.25), { maxZoom: 5 });
+}
+</script>
+</body>
+</html>
